@@ -52,7 +52,10 @@ class LayerBackdrop internal constructor(
         val layerCoordinates = layerCoordinates ?: return
         withTransform({
             if (layerBlock != null) {
-                with(obtainInverseLayerScope()) { inverseTransform(density, layerBlock) }
+                val renderScale = (density as? com.kyant.backdrop.BackdropEffectScopeImpl)?.renderScale ?: 1f
+                with(obtainInverseLayerScope()) {
+                    inverseTransform(density, layerBlock, renderScale)
+                }
             }
             val offset =
                 try {

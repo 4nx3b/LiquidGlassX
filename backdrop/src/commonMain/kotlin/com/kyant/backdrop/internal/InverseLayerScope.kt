@@ -50,10 +50,13 @@ internal class InverseLayerScope : GraphicsLayerScope {
 
     fun DrawTransform.inverseTransform(
         density: Density,
-        layerBlock: GraphicsLayerScope.() -> Unit
+        layerBlock: GraphicsLayerScope.() -> Unit,
+        renderScale: Float = 1f
     ) {
-        this@InverseLayerScope.size = size
-        this@InverseLayerScope.density = density.density
+        this@InverseLayerScope.size =
+            if (renderScale == 1f) size
+            else Size(size.width / renderScale, size.height / renderScale)
+        this@InverseLayerScope.density = density.density / renderScale
         fontScale = density.fontScale
 
         layerBlock()

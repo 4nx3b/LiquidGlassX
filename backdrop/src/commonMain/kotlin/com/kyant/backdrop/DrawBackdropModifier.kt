@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -268,6 +269,8 @@ private class DrawBackdropNode(
         if (padding != 0f) {
             canvas.translate(padding, padding)
         }
+        val renderScale = effectScope.renderScale
+        if (renderScale != 1f) canvas.scale(renderScale, renderScale)
         onDrawBackdrop {
             with(backdrop) {
                 drawBackdrop(
@@ -277,6 +280,7 @@ private class DrawBackdropNode(
                 )
             }
         }
+        if (renderScale != 1f) canvas.scale(1f / renderScale, 1f / renderScale)
         if (padding != 0f) {
             canvas.translate(-padding, -padding)
         }
@@ -286,12 +290,13 @@ private class DrawBackdropNode(
         val layer = graphicsLayer
         if (layer != null) {
             val padding = padding
+            val renderScale = effectScope.renderScale
 
             recordLayer(
                 layer,
                 size = IntSize(
-                    size.width.toInt() + padding.toInt() * 2,
-                    size.height.toInt() + padding.toInt() * 2
+                    (size.width * renderScale).toInt().coerceAtLeast(1) + padding.toInt() * 2,
+                    (size.height * renderScale).toInt().coerceAtLeast(1) + padding.toInt() * 2
                 ),
                 block = recordBackdropBlock
             )
@@ -299,7 +304,15 @@ private class DrawBackdropNode(
             layer.topLeft =
                 if (padding != 0f) IntOffset(-padding.toInt(), -padding.toInt())
                 else IntOffset.Zero
-            drawLayer(layer)
+            if (renderScale == 1f) {
+                drawLayer(layer)
+            } else {
+                withTransform({
+                    scale(1f / renderScale, 1f / renderScale, pivot = androidx.compose.ui.geometry.Offset.Zero)
+                }) {
+                    drawLayer(layer)
+                }
+            }
         }
     }
 
