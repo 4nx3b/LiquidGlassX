@@ -79,15 +79,16 @@ kotlin {
 
 mavenPublishing {
     publishToMavenCentral()
-    signAllPublications()
+    // The fork is currently consumed from Maven Local. Add publication signing when a remote
+    // repository is configured; local Android artifacts do not need a signing key.
 
-    coordinates("io.github.kyant0", "backdrop", "2.0.1")
+    coordinates("io.github.guozhiqiang123", "backdrop", "2.0.1-openliquid.1")
 
     pom {
-        name.set("Backdrop")
-        description.set("Compose Multiplatform Liquid Glass effects")
+        name.set("Backdrop - OpenLiquid fork")
+        description.set("Performance-focused Compose Multiplatform Liquid Glass effects")
         inceptionYear.set("2025")
-        url.set("https://github.com/Kyant0/AndroidLiquidGlass")
+        url.set("https://github.com/guozhiqiang123/AndroidLiquidGlass")
         licenses {
             license {
                 name.set("The Apache License, Version 2.0")
@@ -101,11 +102,16 @@ mavenPublishing {
                 name.set("Kyant")
                 url.set("https://github.com/Kyant0")
             }
+            developer {
+                id.set("guozhiqiang123")
+                name.set("guozhiqiang123")
+                url.set("https://github.com/guozhiqiang123")
+            }
         }
         scm {
-            url.set("https://github.com/Kyant0/AndroidLiquidGlass")
-            connection.set("scm:git:git://github.com/Kyant0/AndroidLiquidGlass.git")
-            developerConnection.set("scm:git:ssh://git@github.com/Kyant0/AndroidLiquidGlass.git")
+            url.set("https://github.com/guozhiqiang123/AndroidLiquidGlass")
+            connection.set("scm:git:git://github.com/guozhiqiang123/AndroidLiquidGlass.git")
+            developerConnection.set("scm:git:ssh://git@github.com/guozhiqiang123/AndroidLiquidGlass.git")
         }
     }
 }
