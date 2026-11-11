@@ -1,8 +1,10 @@
 package com.kyant.backdrop.shadow
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -17,6 +19,7 @@ import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import com.kyant.backdrop.internal.ShapeProvider
 import com.kyant.backdrop.internal.blur
 import kotlin.math.ceil
@@ -68,6 +71,12 @@ internal class ShadowNode(
 
     private var shadowLayer: GraphicsLayer? = null
 
+    private var recordedSize = Size.Unspecified
+    private var recordedDensity = Float.NaN
+    private var recordedLayoutDirection: LayoutDirection? = null
+    private var recordedShape: Shape? = null
+    private var cachedShadow: Shadow? = null
+
     private val paint = Paint()
 
     override fun ContentDrawScope.draw() {
@@ -86,19 +95,38 @@ internal class ShadowNode(
                 ceil(size.width + radius * 4f + offsetX).toInt(),
                 ceil(size.height + radius * 4f + offsetY).toInt()
             )
-            val outline = shapeProvider.shape.createOutline(size, layoutDirection, density)
-
-            configurePaint(shadow)
-
             shadowLayer.alpha = shadow.alpha
             shadowLayer.blendMode = shadow.blendMode
-            shadowLayer.record(shadowSize) {
-                translate(radius * 2f + offsetX, radius * 2f + offsetY) {
-                    val canvas = drawContext.canvas
-                    canvas.drawOutline(outline, paint)
-                    canvas.translate(-offsetX, -offsetY)
-                    canvas.drawOutline(outline, ShadowMaskPaint)
-                    canvas.translate(offsetX, offsetY)
+
+            val shape = shapeProvider.innerShape
+            val cachedShadow = cachedShadow
+            val needsRecord =
+                recordedSize != size ||
+                    recordedDensity != density.density ||
+                    recordedLayoutDirection != layoutDirection ||
+                    recordedShape != shape ||
+                    cachedShadow == null ||
+                    cachedShadow.radius != shadow.radius ||
+                    cachedShadow.offset != shadow.offset ||
+                    cachedShadow.color != shadow.color
+            if (needsRecord) {
+                recordedSize = size
+                recordedDensity = density.density
+                recordedLayoutDirection = layoutDirection
+                recordedShape = shape
+                this@ShadowNode.cachedShadow = shadow
+
+                val outline = shapeProvider.shape.createOutline(size, layoutDirection, density)
+                configurePaint(shadow)
+
+                shadowLayer.record(shadowSize) {
+                    translate(radius * 2f + offsetX, radius * 2f + offsetY) {
+                        val canvas = drawContext.canvas
+                        canvas.drawOutline(outline, paint)
+                        canvas.translate(-offsetX, -offsetY)
+                        canvas.drawOutline(outline, ShadowMaskPaint)
+                        canvas.translate(offsetX, offsetY)
+                    }
                 }
             }
 
@@ -124,6 +152,11 @@ internal class ShadowNode(
             graphicsContext.releaseGraphicsLayer(layer)
             shadowLayer = null
         }
+        recordedSize = Size.Unspecified
+        recordedDensity = Float.NaN
+        recordedLayoutDirection = null
+        recordedShape = null
+        cachedShadow = null
     }
 
     private fun DrawScope.configurePaint(shadow: Shadow) {

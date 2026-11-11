@@ -1,10 +1,12 @@
 package com.kyant.backdrop.highlight
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -17,7 +19,9 @@ import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastCoerceAtMost
 import com.kyant.backdrop.RuntimeShaderCacheImpl
 import com.kyant.backdrop.internal.ShapeProvider
@@ -84,6 +88,14 @@ internal class HighlightNode(
 
     private var prevStyle: HighlightStyle? = null
 
+    private var recordedSize = Size.Unspecified
+    private var recordedDensity = Float.NaN
+    private var recordedLayoutDirection: LayoutDirection? = null
+    private var recordedShape: Shape? = null
+    private var recordedWidth = Dp.Unspecified
+    private var recordedBlurRadius = Dp.Unspecified
+    private var recordedStyle: HighlightStyle? = null
+
     override fun ContentDrawScope.draw() {
         val highlight = highlight()
         if (highlight == null || highlight.width.value <= 0f) {
@@ -104,25 +116,45 @@ internal class HighlightNode(
                     ceil(size.height).toInt() + 2
                 )
 
-            val outline = shapeProvider.shape.createOutline(size, layoutDirection, density)
-            val clipPath =
-                if (outline is Outline.Rounded) {
-                    clipPath ?: Path().also { clipPath = it }
-                } else {
-                    null
-                }
-
-            configurePaint(highlight)
-
             highlightLayer.alpha = highlight.alpha
             highlightLayer.blendMode = highlight.style.blendMode
-            highlightLayer.record(safeSize) {
-                translate(1f, 1f) {
-                    val canvas = drawContext.canvas
-                    canvas.save()
-                    canvas.clipOutline(outline, clipPath)
-                    canvas.drawOutline(outline, paint)
-                    canvas.restore()
+
+            val shape = shapeProvider.innerShape
+            val needsRecord =
+                recordedSize != size ||
+                    recordedDensity != density.density ||
+                    recordedLayoutDirection != layoutDirection ||
+                    recordedShape != shape ||
+                    recordedWidth != highlight.width ||
+                    recordedBlurRadius != highlight.blurRadius ||
+                    recordedStyle != highlight.style
+            if (needsRecord) {
+                recordedSize = size
+                recordedDensity = density.density
+                recordedLayoutDirection = layoutDirection
+                recordedShape = shape
+                recordedWidth = highlight.width
+                recordedBlurRadius = highlight.blurRadius
+                recordedStyle = highlight.style
+
+                val outline = shapeProvider.shape.createOutline(size, layoutDirection, density)
+                val clipPath =
+                    if (outline is Outline.Rounded) {
+                        clipPath ?: Path().also { clipPath = it }
+                    } else {
+                        null
+                    }
+
+                configurePaint(highlight)
+
+                highlightLayer.record(safeSize) {
+                    translate(1f, 1f) {
+                        val canvas = drawContext.canvas
+                        canvas.save()
+                        canvas.clipOutline(outline, clipPath)
+                        canvas.drawOutline(outline, paint)
+                        canvas.restore()
+                    }
                 }
             }
 
@@ -146,6 +178,13 @@ internal class HighlightNode(
         clipPath = null
         runtimeShaderCache.clear()
         prevStyle = null
+        recordedSize = Size.Unspecified
+        recordedDensity = Float.NaN
+        recordedLayoutDirection = null
+        recordedShape = null
+        recordedWidth = Dp.Unspecified
+        recordedBlurRadius = Dp.Unspecified
+        recordedStyle = null
     }
 
     private fun DrawScope.configurePaint(highlight: Highlight) {
