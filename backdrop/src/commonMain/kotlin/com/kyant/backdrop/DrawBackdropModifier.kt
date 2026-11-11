@@ -2,10 +2,9 @@ package com.kyant.backdrop
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
@@ -18,11 +17,13 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.ObserverModifierNode
+import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.observeReads
 import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
@@ -258,7 +259,9 @@ private class DrawBackdropNode(
         compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
     }
 
-    private var layoutCoordinates: LayoutCoordinates? by mutableStateOf(null, neverEqualPolicy())
+    private var layoutCoordinates: LayoutCoordinates? = null
+
+    private var positionInWindow = Offset.Unspecified
 
     private var padding by mutableFloatStateOf(0f)
 
@@ -351,9 +354,15 @@ private class DrawBackdropNode(
         if (coordinates.isAttached) {
             if (backdrop.isCoordinatesDependent) {
                 layoutCoordinates = coordinates
+                val newPositionInWindow = coordinates.positionInWindow()
+                if (positionInWindow != newPositionInWindow) {
+                    positionInWindow = newPositionInWindow
+                    invalidateDraw()
+                }
             } else {
                 if (layoutCoordinates != null) {
                     layoutCoordinates = null
+                    positionInWindow = Offset.Unspecified
                 }
             }
             exportedBackdrop?.layerCoordinates = coordinates
@@ -396,6 +405,7 @@ private class DrawBackdropNode(
 
         effectScope.reset()
         layoutCoordinates = null
+        positionInWindow = Offset.Unspecified
         exportedBackdrop?.layerCoordinates = null
     }
 }
