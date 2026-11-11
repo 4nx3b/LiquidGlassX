@@ -1,8 +1,5 @@
 package com.kyant.backdrop
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -263,7 +260,7 @@ private class DrawBackdropNode(
 
     private var positionInWindow = Offset.Unspecified
 
-    private var padding by mutableFloatStateOf(0f)
+    private var padding = 0f
 
     private val recordBackdropBlock: (DrawScope.() -> Unit) = {
         val canvas = drawContext.canvas
@@ -370,11 +367,13 @@ private class DrawBackdropNode(
     }
 
     override fun onObservedReadsChanged() {
-        invalidateDrawCache()
+        observeEffects()
+        invalidateDraw()
     }
 
     fun invalidateDrawCache() {
         observeEffects()
+        invalidateDraw()
     }
 
     private fun observeEffects() {
