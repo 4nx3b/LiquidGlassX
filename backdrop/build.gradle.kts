@@ -82,7 +82,7 @@ mavenPublishing {
     // The fork is currently consumed from Maven Local. Add publication signing when a remote
     // repository is configured; local Android artifacts do not need a signing key.
 
-    coordinates("io.github.guozhiqiang123", "backdrop", "2.0.1-openliquid.1")
+    coordinates("io.github.guozhiqiang123", "backdrop", "2.0.1-openliquid.2")
 
     pom {
         name.set("Backdrop - OpenLiquid fork")
