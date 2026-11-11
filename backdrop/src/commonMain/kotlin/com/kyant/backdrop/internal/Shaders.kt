@@ -57,8 +57,16 @@ uniform float4 cornerRadii;
 uniform float refractionHeight;
 uniform float refractionAmount;
 uniform float depthEffect;
+uniform float saturation;
 
 $RoundedRectSDF
+
+half4 applySaturation(half4 color) {
+    if (saturation == 1.0 || color.a <= 0.0) return color;
+    half3 rgb = color.rgb / color.a;
+    half luminance = dot(rgb, half3(0.213, 0.715, 0.072));
+    return half4(clamp(mix(half3(luminance), rgb, half(saturation)), 0.0, 1.0) * color.a, color.a);
+}
 
 float circleMap(float x) {
     return 1.0 - sqrt(1.0 - x * x);
@@ -71,7 +79,7 @@ half4 main(float2 coord) {
     
     float sd = sdRoundedRect(centeredCoord, halfSize, radius);
     if (-sd >= refractionHeight) {
-        return content.eval(coord);
+        return applySaturation(content.eval(coord));
     }
     sd = min(sd, 0.0);
     
@@ -80,7 +88,7 @@ half4 main(float2 coord) {
     float2 grad = normalize(gradSdRoundedRect(centeredCoord, halfSize, gradRadius) + depthEffect * normalize(centeredCoord));
     
     float2 refractedCoord = coord + d * grad;
-    return content.eval(refractedCoord);
+    return applySaturation(content.eval(refractedCoord));
 }"""
 
 @Language("AGSL")
@@ -93,9 +101,17 @@ uniform float4 cornerRadii;
 uniform float refractionHeight;
 uniform float refractionAmount;
 uniform float depthEffect;
+uniform float saturation;
 uniform float chromaticAberration;
 
 $RoundedRectSDF
+
+half4 applySaturation(half4 color) {
+    if (saturation == 1.0 || color.a <= 0.0) return color;
+    half3 rgb = color.rgb / color.a;
+    half luminance = dot(rgb, half3(0.213, 0.715, 0.072));
+    return half4(clamp(mix(half3(luminance), rgb, half(saturation)), 0.0, 1.0) * color.a, color.a);
+}
 
 float circleMap(float x) {
     return 1.0 - sqrt(1.0 - x * x);
@@ -108,7 +124,7 @@ half4 main(float2 coord) {
     
     float sd = sdRoundedRect(centeredCoord, halfSize, radius);
     if (-sd >= refractionHeight) {
-        return content.eval(coord);
+        return applySaturation(content.eval(coord));
     }
     sd = min(sd, 0.0);
     
@@ -154,7 +170,7 @@ half4 main(float2 coord) {
     color.b += purple.b / 3.0;
     color.a += purple.a / 7.0;
     
-    return color;
+    return applySaturation(color);
 }"""
 
 @Language("AGSL")
