@@ -18,17 +18,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.catalog.BackdropDemoScaffold
 import com.kyant.backdrop.catalog.Block
-import com.kyant.backdrop.catalog.utils.scale
+import com.kyant.backdrop.catalog.utils.awaitFrame
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.colorControls
@@ -55,10 +57,15 @@ fun AdaptiveLuminanceGlassContent() {
     }
     LaunchedEffect(layer) {
         val buffer = IntArray(25)
+        var targetContentColor: Color? = null
         while (isActive) {
+            awaitFrame()
             val imageBitmap = layer.toImageBitmap()
-            val thumbnail = imageBitmap.scale(5, 5)
-            thumbnail.readPixels(buffer)
+            // Skip frames captured before the layer has been recorded at its sample resolution.
+            if (imageBitmap.width < 5 || imageBitmap.height < 5) {
+                continue
+            }
+            imageBitmap.readPixels(buffer)
             val averageLuminance =
                 buffer.sumOf { argb ->
                     val r = (argb shr 16 and 0xFF) / 255f
@@ -66,11 +73,12 @@ fun AdaptiveLuminanceGlassContent() {
                     val b = (argb and 0xFF) / 255f
                     0.2126 * r + 0.7152 * g + 0.0722 * b
                 } / buffer.size
-            launch {
-                contentColorAnimation.animateTo(
-                    if (averageLuminance > 0.5f) Color.Black else Color.White,
-                    tween(1000)
-                )
+            val contentColor = if (averageLuminance > 0.5f) Color.Black else Color.White
+            if (contentColor != targetContentColor) {
+                targetContentColor = contentColor
+                launch {
+                    contentColorAnimation.animateTo(contentColor, tween(1000))
+                }
             }
             luminanceAnimation.animateTo(
                 averageLuminance.toFloat(),
@@ -121,7 +129,21 @@ fun AdaptiveLuminanceGlassContent() {
                     },
                     onDrawBackdrop = { drawBackdrop ->
                         drawBackdrop()
-                        layer.record { drawBackdrop() }
+                        // Record the luminance probe directly at the sample resolution instead of
+                        // reading the full-resolution layer back to the CPU and downscaling it.
+                        // This samples ~5x5 texels from the GPU instead of copying the whole
+                        // (screen-sized) layer, with linear filtering providing a smoother
+                        // luminance estimate than nearest-neighbor downscaling.
+                        val contentSize = size
+                        layer.record(IntSize(5, 5)) {
+                            scale(
+                                5f / contentSize.width,
+                                5f / contentSize.height,
+                                pivot = Offset.Zero
+                            ) {
+                                drawBackdrop()
+                            }
+                        }
                     }
                 )
                 .pointerInput(animationScope) {
