@@ -43,6 +43,14 @@ internal abstract class BackdropEffectScopeImpl : BackdropEffectScope, RuntimeSh
     internal var renderScale: Float = 1f
     override var renderEffect: RenderEffect? = null
 
+    /**
+     * Scratch buffer reused by lens effects to pass per-corner radii to shaders. Avoids allocating
+     * a new array every time the effect chain is rebuilt (which can happen on every frame during
+     * animations and gestures). Uniform setters copy the values immediately, so sharing this
+     * buffer across updates is safe.
+     */
+    internal val lensCornerRadii = FloatArray(4)
+
     private val runtimeShaderCache = RuntimeShaderCacheImpl()
 
     override fun obtainRuntimeShader(key: String, string: String): RuntimeShader {

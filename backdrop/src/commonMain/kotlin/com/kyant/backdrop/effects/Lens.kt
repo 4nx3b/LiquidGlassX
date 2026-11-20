@@ -7,6 +7,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.ui.util.fastCoerceAtMost
 import com.kyant.backdrop.BackdropEffectScope
+import com.kyant.backdrop.BackdropEffectScopeImpl
 import com.kyant.backdrop.internal.RoundedRectRefractionShaderString
 import com.kyant.backdrop.internal.RoundedRectRefractionWithDispersionShaderString
 import com.kyant.backdrop.internal.RuntimeShaderEffect
@@ -82,57 +83,51 @@ fun BackdropEffectScope.lens(
 }
 
 private val BackdropEffectScope.cornerRadii: FloatArray?
-    get() = when (val shape = shape) {
-        is RoundedRectangularShape -> {
-            val corners = shape.corners(size, layoutDirection, this)
-            floatArrayOf(
-                corners.topLeft,
-                corners.topRight,
-                corners.bottomRight,
-                corners.bottomLeft
-            )
-        }
+    get() {
+        // BackdropEffectScope is sealed with a single internal implementation, so this cast
+        // succeeds in practice; the fallback keeps the property total.
+        val radii = (this as? BackdropEffectScopeImpl)?.lensCornerRadii ?: FloatArray(4)
+        return when (val shape = shape) {
+            is RoundedRectangularShape -> {
+                val corners = shape.corners(size, layoutDirection, this)
+                radii[0] = corners.topLeft
+                radii[1] = corners.topRight
+                radii[2] = corners.bottomRight
+                radii[3] = corners.bottomLeft
+                radii
+            }
 
-        is AbsoluteRoundedCornerShape -> {
-            val size = size
-            val maxRadius = size.minDimension / 2f
-            val topLeft = shape.topStart.toPx(size, this)
-            val topRight = shape.topEnd.toPx(size, this)
-            val bottomRight = shape.bottomEnd.toPx(size, this)
-            val bottomLeft = shape.bottomStart.toPx(size, this)
-            floatArrayOf(
-                topLeft.fastCoerceAtMost(maxRadius),
-                topRight.fastCoerceAtMost(maxRadius),
-                bottomRight.fastCoerceAtMost(maxRadius),
-                bottomLeft.fastCoerceAtMost(maxRadius)
-            )
-        }
+            is AbsoluteRoundedCornerShape -> {
+                val size = size
+                val maxRadius = size.minDimension / 2f
+                radii[0] = shape.topStart.toPx(size, this).fastCoerceAtMost(maxRadius)
+                radii[1] = shape.topEnd.toPx(size, this).fastCoerceAtMost(maxRadius)
+                radii[2] = shape.bottomEnd.toPx(size, this).fastCoerceAtMost(maxRadius)
+                radii[3] = shape.bottomStart.toPx(size, this).fastCoerceAtMost(maxRadius)
+                radii
+            }
 
-        is CornerBasedShape -> {
-            val size = size
-            val maxRadius = size.minDimension / 2f
-            val isLtr = layoutDirection == LayoutDirection.Ltr
-            val topLeft =
-                if (isLtr) shape.topStart.toPx(size, this)
-                else shape.topEnd.toPx(size, this)
-            val topRight =
-                if (isLtr) shape.topEnd.toPx(size, this)
-                else shape.topStart.toPx(size, this)
-            val bottomRight =
-                if (isLtr) shape.bottomEnd.toPx(size, this)
-                else shape.bottomStart.toPx(size, this)
-            val bottomLeft =
-                if (isLtr) shape.bottomStart.toPx(size, this)
-                else shape.bottomEnd.toPx(size, this)
-            floatArrayOf(
-                topLeft.fastCoerceAtMost(maxRadius),
-                topRight.fastCoerceAtMost(maxRadius),
-                bottomRight.fastCoerceAtMost(maxRadius),
-                bottomLeft.fastCoerceAtMost(maxRadius)
-            )
-        }
+            is CornerBasedShape -> {
+                val size = size
+                val maxRadius = size.minDimension / 2f
+                val isLtr = layoutDirection == LayoutDirection.Ltr
+                radii[0] =
+                    (if (isLtr) shape.topStart else shape.topEnd).toPx(size, this)
+                        .fastCoerceAtMost(maxRadius)
+                radii[1] =
+                    (if (isLtr) shape.topEnd else shape.topStart).toPx(size, this)
+                        .fastCoerceAtMost(maxRadius)
+                radii[2] =
+                    (if (isLtr) shape.bottomEnd else shape.bottomStart).toPx(size, this)
+                        .fastCoerceAtMost(maxRadius)
+                radii[3] =
+                    (if (isLtr) shape.bottomStart else shape.bottomEnd).toPx(size, this)
+                        .fastCoerceAtMost(maxRadius)
+                radii
+            }
 
-        else -> null
+            else -> null
+        }
     }
 
 private fun throwUnsupportedSDFException(): Nothing {
