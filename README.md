@@ -20,6 +20,9 @@ This fork applies performance-focused changes on top of upstream, with no visual
 - Highlight/shadow decoration layers are cached and only re-recorded when their inputs change.
 - Per-corner radii are written into a reused scratch buffer instead of a new array per effect
   rebuild (relevant during animations and gestures).
+- The lens shaders select corner radii with branchless steps instead of a divergent branch, and
+  skip the radial depth gradient when `depthEffect` is disabled, saving an inverse square root
+  per fragment.
 - [BackdropRendering.scale](backdrop/src/commonMain/kotlin/com/kyant/backdrop/BackdropEffectScope.kt)
   globally scales the render resolution of backdrop effects (clamped to `0.1f..3f`) — lowering it
   is an escape hatch for low-end devices.

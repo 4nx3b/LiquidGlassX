@@ -21,13 +21,13 @@ import org.intellij.lang.annotations.Language
 @Language("AGSL")
 private const val RoundedRectSDF = """
 float radiusAt(float2 centeredCoord, float4 radii) {
-    if (centeredCoord.x >= 0.0) {
-        if (centeredCoord.y <= 0.0) return radii.y;
-        else return radii.z;
-    } else {
-        if (centeredCoord.y <= 0.0) return radii.x;
-        else return radii.w;
-    }
+    // Branchless corner selection. A divergent branch here would be executed by every
+    // fragment of the effect, so select with steps instead. isBelowMidline matches the
+    // original y <= 0.0 comparison and isRight the x >= 0.0 one, boundary included.
+    float isBelowMidline = step(0.0, -centeredCoord.y);
+    float leftRadius = mix(radii.w, radii.x, isBelowMidline);
+    float rightRadius = mix(radii.z, radii.y, isBelowMidline);
+    return mix(leftRadius, rightRadius, step(0.0, centeredCoord.x));
 }
 
 float sdRoundedRect(float2 coord, float2 halfSize, float radius) {
@@ -85,7 +85,14 @@ half4 main(float2 coord) {
     
     float d = circleMap(1.0 - -sd / refractionHeight) * refractionAmount;
     float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
-    float2 grad = normalize(gradSdRoundedRect(centeredCoord, halfSize, gradRadius) + depthEffect * normalize(centeredCoord));
+    float2 grad = gradSdRoundedRect(centeredCoord, halfSize, gradRadius);
+    // depthEffect is uniform across the draw, so this branch never diverges; skipping the
+    // radial gradient when unused saves a normalize per fragment.
+    if (depthEffect != 0.0) {
+        grad = normalize(grad + depthEffect * normalize(centeredCoord));
+    } else {
+        grad = normalize(grad);
+    }
     
     float2 refractedCoord = coord + d * grad;
     return applySaturation(content.eval(refractedCoord));
@@ -130,7 +137,14 @@ half4 main(float2 coord) {
     
     float d = circleMap(1.0 - -sd / refractionHeight) * refractionAmount;
     float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
-    float2 grad = normalize(gradSdRoundedRect(centeredCoord, halfSize, gradRadius) + depthEffect * normalize(centeredCoord));
+    float2 grad = gradSdRoundedRect(centeredCoord, halfSize, gradRadius);
+    // depthEffect is uniform across the draw, so this branch never diverges; skipping the
+    // radial gradient when unused saves a normalize per fragment.
+    if (depthEffect != 0.0) {
+        grad = normalize(grad + depthEffect * normalize(centeredCoord));
+    } else {
+        grad = normalize(grad);
+    }
     
     float2 refractedCoord = coord + d * grad;
     float dispersionIntensity = chromaticAberration * ((centeredCoord.x * centeredCoord.y) / (halfSize.x * halfSize.y));
