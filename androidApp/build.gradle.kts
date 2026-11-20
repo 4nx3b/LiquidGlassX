@@ -17,12 +17,32 @@ android {
         androidResources.localeFilters += arrayOf("en")
     }
 
+    // Release signing is injected from the environment (CI decodes the repository-secret
+    // keystore to KEYSTORE_FILE). When absent, release builds fall back to the debug key so
+    // local builds stay installable.
+    val releaseKeystoreFile = providers.environmentVariable("KEYSTORE_FILE")
+    val hasReleaseSigning = releaseKeystoreFile.isPresent
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseKeystoreFile.get())
+                storePassword = providers.environmentVariable("KEYSTORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             vcsInfo.include = false
+            signingConfig =
+                if (hasReleaseSigning) signingConfigs.getByName("release")
+                else signingConfigs.getByName("debug")
         }
     }
     buildFeatures {

@@ -29,6 +29,15 @@ This fork applies performance-focused changes on top of upstream, with no visual
 - The catalog's adaptive-luminance demo samples the backdrop at 5×5 directly on the GPU instead of
   reading the full layer back to the CPU each frame.
 
+## Release signing
+
+CI signs `androidApp` release builds with a dedicated keystore stored as repository secrets
+(`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`). The Gradle signing config
+reads `KEYSTORE_FILE` (plus the three credential variables) from the environment and falls back
+to the debug key when it is absent, so local release builds remain installable. The workflow
+verifies both APKs with `apksigner` and prints their certificate fingerprints and SHA-256
+checksums before uploading them as artifacts.
+
 ## Components
 
 The library does not include any high-level components; you will need to create your own.
